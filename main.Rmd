@@ -1,0 +1,115 @@
+---
+title: "Tidy Modeling with R"
+author: "Luca Hüsler"
+date: "2022-10-14"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidymodels)
+library(mlbench)
+```
+
+# 1 Software for modeling
+
+https://www.tmwr.org/software-modeling.html#software-modeling
+
+# 2 A Tidyverse Primer
+
+```{r}
+mtcars %>%
+  select(ends_with("t"))
+```
+
+# 3 A Review of R Modeling Fundamentalsels
+
+
+
+We are working with the `BostonHousing` dataset from the `mlbench` package
+
+```{r}
+boston_housing <- as_tibble(BostonHousing)
+dim(boston_housing)
+```
+
+## Prepare train and test data
+
+```{r}
+boston_housing_split <- initial_split(boston_housing, prop = 0.75, strata = NULL)
+
+boston_training <- boston_housing_split %>%
+  training()
+
+boston_test <- boston_housing_split %>%
+  testing()
+```
+
+
+
+## Linear regression with tidymodels
+
+We create models with the `parsnip` package. First, we define the model:
+
+```{r}
+lm_model <- linear_reg() %>%
+  set_engine("lm") %>%
+  set_mode("regression")
+```
+
+
+Now, we can fit the model with our training data:
+
+```{r}
+lm_fit <- fit(lm_model,
+                  formula =  medv ~ ., 
+                  data = boston_training)
+lm_fit
+```
+
+Let's now do a prediction on the test data:
+
+```{r}
+boston_pred <- lm_fit %>% 
+  predict(new_data = boston_test)
+
+boston_pred
+```
+
+Finally, lets bind the predictions together with the test dataset:
+```{r}
+lm_test_results <- boston_test %>%
+  bind_cols(boston_pred)
+```
+
+
+## Evaluating model performance
+
+The `yardstick` package offers tools for evaluating model performance. All yardstick functions **require a tibble as input**, containing a column with the true outcome and one with the prediction.
+
+### Calculation RMSE and R-Squared
+
+```{r}
+# root mean square error
+lm_test_results %>% 
+  rmse(truth = medv, estimate = .pred) 
+
+# R-Squared
+lm_test_results %>%
+  rsq(truth = medv, estimate = .pred)
+  
+```
+
+### R-Squared plots
+
+```{r}
+ggplot(lm_test_results, aes(x= medv, y = .pred)) +
+  geom_point(alpha = 0.5) + 
+  geom_abline(color = 'blue', linetype = 2) +
+  coord_obs_pred() +
+  labs(x = 'Actual Home Selling Price', y = 'Predicted Selling Price')
+```
+
